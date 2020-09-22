@@ -1,6 +1,6 @@
 ---
 title: "Week 3"
-author: "David Kane"
+author: "Yishak Ali"
 output: html_document
 ---
 
@@ -40,7 +40,12 @@ sep_old <-
          title = course_title,
          name = course_name,
          department = course_department) %>% 
-  filter(u_grad > 10)
+  filter(u_grad > 10) %>% 
+  group_by(title) %>% 
+  summarize(total_ungrad = sum(u_grad),.groups = "drop")
+
+
+
 
 # But this is not correct! Look for Gov 50: Data. What do you see? What can you
 # do to clean it up?
@@ -51,6 +56,23 @@ sep_old <-
 
 **Prompt:** Read in and clean the new data, creating an object called `sep_new`. 
 
+```{r}
+sep_new <- 
+  read_excel("new_data/class_enrollment_summary_by_term_9-22-2020.xlsx", 
+             skip = 3) %>% 
+  clean_names() %>% 
+  filter(! is.na(course_title)) %>% 
+  select(-grad, -non_degree, -x_reg, -vus, -employee, 
+         -withdraw, -total, -instructor_full_name, -course_section_code) %>%
+  rename(id = course_id,
+         title = course_title,
+         name = course_name,
+         department = course_department) %>% 
+  filter(u_grad > 10) %>% 
+  group_by(title) %>% 
+  summarize(total_ungrad = sum(u_grad),.groups = "drop")
+```
+
 
 
 ### Scene 2
@@ -60,17 +82,40 @@ sep_old <-
 
 Before we start on the model, Wisdom suggests we should:
 
+We need to also see if the overall undergraduate enrollment has dropped because of students taking gap semesters or if students are just enrolled for some courses during shopping week only to later drop them. 
 
+We should also look at old data to see if this drop in enrollment is normal or different from past sem/years.
 
 
 After we have a model, Temperance suggests we should:
 
-
+See ways in which our model is flawed.
 
 ### Scene 3
 
 **Prompt:** Which classes had the biggest increases and decreases in undergraduate enrollments between September 1 and today? Make a graphic that shows the 5 biggest increases and decreases. Make it look nice.
 
+```{r message = FALSE}
+change_in_enrollment_decrease <- inner_join(sep_new, sep_old, by = c("title")) %>% 
+  mutate(difference = total_ungrad.x - total_ungrad.y) %>% 
+  arrange(difference) %>% 
+  slice(1:5)
+
+change_in_enrollment_increase <- inner_join(sep_new, sep_old, by = c("title")) %>% 
+  mutate(difference = total_ungrad.x - total_ungrad.y) %>% 
+  arrange(desc(difference)) %>% 
+  slice(1:5)
+
+full_join(change_in_enrollment_decrease, change_in_enrollment_increase) %>% 
+  ggplot(aes(x = fct_reorder(title, difference), y = difference, fill = title)) +
+  geom_col() + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Biggest Changes in Course Enrollment", 
+       x = "Course Title", y = "Change in Enrollment",
+       fill = "Course Title") 
+  
+```
 
 
 
